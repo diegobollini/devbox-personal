@@ -1,0 +1,57 @@
+{
+  "name": "devbox-personal",
+
+  // Base oficial de Dev Containers. Sin imagen horneada a propósito: mientras el
+  // post-create tarde poco, no vale la pena el pipeline de build + registry.
+  "image": "mcr.microsoft.com/devcontainers/base:debian",
+
+  "features": {
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/devcontainers/features/node:1": { "version": "lts" },
+    "ghcr.io/devcontainers/features/python:1": { "version": "3.12" }
+  },
+
+  "remoteUser": "vscode",
+
+  // Se monta ~/personal ENTERO (no solo este repo) y se abre como raíz del
+  // workspace. Abrís este repo en VS Code y ves todos tus proyectos personales
+  // como hermanos, con un solo container.
+  //
+  // REQUISITO: este repo tiene que estar clonado en ~/personal/devbox-personal.
+  // Los paths de post/start command de abajo dependen de ese nombre.
+  "workspaceMount": "source=${localEnv:HOME}/personal,target=/workspaces/personal,type=bind,consistency=cached",
+  "workspaceFolder": "/workspaces/personal",
+
+  // Credenciales: VOLÚMENES, nunca binds de $HOME. El container no debe poder
+  // tocar la auth del host (en la notebook laboral eso sería la identidad Adhoc).
+  // Nacen root-owned; post-create hace el chown.
+  "mounts": [
+    "source=personal-ssh,target=/home/vscode/.ssh,type=volume",
+    "source=personal-gh,target=/home/vscode/.config/gh,type=volume",
+    "source=personal-claude,target=/home/vscode/.claude,type=volume",
+    "source=personal-cache,target=/home/vscode/.cache,type=volume"
+  ],
+
+  "remoteEnv": {
+    // Corta el ssh-agent forwarding de VS Code. Sin esto, TODAS las claves
+    // cargadas en el agente del host quedan usables adentro — en la notebook
+    // laboral son las de Adhoc. El container usa su propia clave del volumen
+    // personal-ssh.
+    "SSH_AUTH_SOCK": ""
+  },
+
+  // Dev Containers copia el ~/.gitconfig del host e inyecta su credential
+  // helper: sin pisarlo, este container commitea como dib@adhoc.inc.
+  "postCreateCommand": "bash devbox-personal/.devcontainer/post-create.sh",
+  // La identidad se re-afirma en cada arranque, no solo al crear.
+  "postStartCommand": "bash devbox-personal/.devcontainer/assert-identity.sh",
+
+  "customizations": {
+    "vscode": {
+      "extensions": ["anthropic.claude-code"],
+      "settings": {
+        "files.associations": { "*.json": "jsonc" }
+      }
+    }
+  }
+}
